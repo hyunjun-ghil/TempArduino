@@ -40,22 +40,21 @@ void setup()
   mfrc522.PCD_Init(); // Init MFRC522
 
   if (WiFi.status() == WL_NO_SHIELD) {
-    Serial.println("WiFi shield not present");
+    Serial.println(F("WiFi shield not present"));
     while (true);
   }
 
   // attempt to connect to WiFi network
   while ( status != WL_CONNECTED) {
-    Serial.print("Attempting to connect to WPA SSID: ");
+    Serial.print(F("Attempting to connect to WPA SSID: "));
     Serial.println(ssid);
     status = WiFi.begin(ssid, pass);
   }
 
-  Serial.println("You're connected to the network");
+  Serial.println(F("You're connected to the network"));
 
 
   printWifiStatus();
-
 
 
   lcd.init();
@@ -65,14 +64,17 @@ void setup()
 
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.println("Ip Address");
+  lcd.println(F("Ip Address"));
   lcd.setCursor(0, 1);
   lcd.println(WiFi.localIP());
   delay(3000);
 
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Show your card:)");
+  lcd.print(F("Show your card:)"));
+  Serial.println(F("Initaillizing Done."));
+  Serial.println(F("====================="));
+  Serial.println();
 
 }
 
@@ -86,7 +88,7 @@ void loop()
     if ( mfrc522.PICC_ReadCardSerial())
     {
       lcd.clear();
-      Serial.print("Tag UID:");
+      Serial.print(F("Tag UID:"));
       lcd.setCursor(0, 0);
       lcd.print("Tag UID:");
       lcd.setCursor(0, 1);
@@ -94,24 +96,48 @@ void loop()
       for (byte i = 0; i < mfrc522.uid.size; i++) {
         Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
         Serial.print(mfrc522.uid.uidByte[i], HEX);
-        lcd.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
-        lcd.print(mfrc522.uid.uidByte[i], HEX);
+        //lcd.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
+        //lcd.print(mfrc522.uid.uidByte[i], HEX);
+        lcd.print(mfrc522.uid.uidByte[i]);
         TagID.concat(mfrc522.uid.uidByte[i]);
       }
-
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("your id is");
-      lcd.setCursor(0, 1);
-      lcd.println(TagID);
-      delay(2000);
-
+      
       Serial.println();
-      delay(3000);
+      
+      client.stop();
+      if (client.connect(server, 3000)) {
+        Serial.println(F("Connected to server"));
+        client.println("GET /test/select/usr_info?uuid=" + String(TagID) + " HTTP/1.1");
+        client.println("Host: 192.168.16.17");
+        client.println("Connection: close");
+        client.println();
+      }
 
+      String response = "";
+      bool begin = false;
+      int cnt = 0;
+      while (client.available()) {
+          char in = client.read();
+          if( in == '\n'){
+            cnt++;
+          }
+            if(cnt==8) response += (in);
+            Serial.print(in);
+          
+        }
+      delay(2000);
+      response.replace("\"","");
+      response.replace("\n","");
       lcd.clear();
       lcd.setCursor(0, 0);
-      Serial.println("============================");
+      Serial.println();
+      Serial.println(F("============================"));
+      Serial.println(response);
+      Serial.println(F("============================"));
+      lcd.print("Your Id is : ");
+      lcd.setCursor(0,1);
+      lcd.print(response);
+      
       mfrc522.PICC_HaltA();
 
       delay(500);
@@ -119,9 +145,6 @@ void loop()
       for (int i = 0; i < 10; i++) {
         lcd.setCursor(0, 0);
         val = analogRead(0); //LM35센서로부터 불러온 값을 val변수에 저장
-        //temperature = -40 + 0.488155 * (val - 20); //val값을 실제온도*10으로 변환
-        //temperature = (val * 5.0); //val값을 실제온도*10으로 변환
-        //temperature /= 1024.0;
         lcd.println("Temparature is : ");
         lcd.setCursor(0, 1);
         temperatureC = val - 50;
@@ -145,15 +168,15 @@ void loop()
 
       // if you get a connection, report back via serial
       if (client.connect(server, 3000)) {
-        Serial.println("Connected to server");
-        client.println("GET /test/insert?id=" + TagID + "&temp=" + temperatureC + " HTTP/1.1");
+        Serial.println(F("Connected to server"));
+        client.println("GET /test/insert?id=" + response + "&temp=" + temperatureC + " HTTP/1.1");
         client.println("Host: 192.168.16.17");
         client.println("Connection: close");
         client.println();
       }
 
-      String response = "";
-      bool begin = false;
+      response = "";
+      begin = false;
       while (client.available() || !begin) {
 
         char in = client.read();
@@ -184,39 +207,25 @@ void loop()
     }
 
   }
-  //  while (client.available()) {
-  //    char c = client.read();
-  //    Serial.write(c);
-  //  }
-  //
-  //  // if the server's disconnected, stop the client
-  //  if (!client.connected()) {
-  //    Serial.println();
-  //    Serial.println("Disconnecting from server...");
-  //    client.stop();
-  //
-  //    // do nothing forevermore
-  //    while (true);
-  //  }
 }
 
 
 void printWifiStatus()
 {
   // print the SSID of the network you're attached to
-  Serial.print("SSID: ");
+  Serial.print(F("SSID: "));
   Serial.println(WiFi.SSID());
 
   // print your WiFi shield's IP address
   IPAddress ip = WiFi.localIP();
-  Serial.print("IP Address: ");
+  Serial.print(F("IP Address: "));
   Serial.println(ip);
 
   // print the received signal strength
   long rssi = WiFi.RSSI();
-  Serial.print("Signal strength (RSSI):");
+  Serial.print(F("Signal strength (RSSI):"));
   Serial.print(rssi);
-  Serial.println(" dBm");
+  Serial.println(F(" dBm"));
 }
 
 
